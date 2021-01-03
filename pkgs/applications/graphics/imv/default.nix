@@ -1,66 +1,96 @@
-{ asciidoc
-, cmocka
+{ stdenv
+# build deps
+, meson
+, ninja
+, asciidoc
 , docbook_xsl
+, libxslt
+, cmocka
+, pkgconfig
 , fetchFromGitHub
-, fontconfig
-, freeimage
+# runtime deps
+, inih
+, pango
+, libxkbcommon
 , icu
-, libGLU
-, libheif
-, libjpeg_turbo
+# backends
+, freeimage
+, libtiff
 , libpng
 , librsvg
-, libtiff
-, libxkbcommon
-, libxslt
 , netsurf
-, pango
-, pkgconfig
-, stdenv
-, wayland
+, libheif
+# window system
+, x11Support ? true
+  , libGLU ? null
+, waylandSupport ? true
+  , wayland ? null
 }:
 
-stdenv.mkDerivation rec {
+assert x11Support -> libGLU != null;
+assert waylandSupport -> wayland != null;
+
+let
+  lib = stdenv.lib;
+
+  windowSystem =
+       if  x11Support &&  waylandSupport then "all"
+  else if  x11Support && !waylandSupport then "x11"
+  else if !x11Support &&  waylandSupport then "wayland"
+  else throw ''
+    Support for at least one window system (X11 or wayland)
+    must be enabled.
+  '';
+
+in stdenv.mkDerivation rec {
   pname = "imv";
-  version = "4.1.0";
+  version = "4.2.0";
 
   src = fetchFromGitHub {
     owner = "eXeC64";
     repo = "imv";
     rev = "v${version}";
-    sha256 = "0gk8g178i961nn3bls75a8qpv6wvfvav6hd9lxca1skaikd33zdx";
+    sha256 = "07pcpppmfvvj0czfvp1cyq03ha0jdj4whl13lzvw37q3vpxs5qqh";
   };
 
-  nativeBuildInputs = [ asciidoc cmocka docbook_xsl libxslt ];
-
-  buildInputs = [
-    freeimage
-    icu
-    libGLU
-    libjpeg_turbo
-    librsvg
-    libxkbcommon
-    netsurf.libnsgif
-    pango
+  nativeBuildInputs = [
+    meson
+    ninja
+    asciidoc
+    docbook_xsl
+    libxslt
+    cmocka
     pkgconfig
-    wayland
   ];
 
-  installFlags = [ "PREFIX=$(out)" "CONFIGPREFIX=$(out)/etc" ];
+  mesonFlags = [ "-Dwindows=${windowSystem}" ];
 
-  makeFlags = [ "BACKEND_LIBJPEG=yes" "BACKEND_LIBNSGIF=yes" ];
+  buildInputs = [
+    inih
+    pango
+    libxkbcommon
+    icu
+    # backends
+    freeimage
+    libtiff
+    libpng
+    librsvg
+    libheif
+    netsurf.libnsgif
+  ]
+  ++ lib.optionals x11Support [ libGLU ]
+  ++ lib.optionals waylandSupport [ wayland ];
 
-  postFixup = ''
-    # The `bin/imv` script assumes imv-wayland or imv-x11 in PATH,
-    # so we have to fix those to the binaries we installed into the /nix/store
-
+  # The `bin/imv` script assumes imv-wayland or imv-x11 in PATH,
+  # so we have to fix those to the binaries we installed into the /nix/store
+  postFixup = lib.optionalString (windowSystem == "all") ''
     sed -i "s|\bimv-wayland\b|$out/bin/imv-wayland|" $out/bin/imv
     sed -i "s|\bimv-x11\b|$out/bin/imv-x11|" $out/bin/imv
   '';
 
   doCheck = true;
 
-  meta = with stdenv.lib; {
+  meta = with lib; {
     description = "A command line image viewer for tiling window managers";
     homepage = "https://github.com/eXeC64/imv";
     license = licenses.gpl2;
