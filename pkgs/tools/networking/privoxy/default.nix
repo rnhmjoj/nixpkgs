@@ -1,4 +1,8 @@
-{ stdenv, fetchurl, autoreconfHook, zlib, pcre, w3m, man }:
+{ lib, stdenv
+, fetchurl, autoreconfHook
+, zlib, pcre, w3m, man
+, mbedtls, brotli
+}:
 
 stdenv.mkDerivation rec {
 
@@ -13,15 +17,21 @@ stdenv.mkDerivation rec {
   hardeningEnable = [ "pie" ];
 
   nativeBuildInputs = [ autoreconfHook w3m man ];
-  buildInputs = [ zlib pcre ];
+  buildInputs = [ zlib pcre mbedtls brotli ];
 
-  makeFlags = [ "STRIP="];
+  makeFlags = [ "STRIP=" ];
+  configureFlags = [
+    "--with-mbedtls"
+    "--with-brotli"
+    "--enable-external-filters"
+    "--enable-compression"
+  ];
 
   postInstall = ''
-    rm -rf $out/var
+    rm -r $out/var
   '';
 
-  meta = with stdenv.lib; {
+  meta = with lib; {
     homepage = "https://www.privoxy.org/";
     description = "Non-caching web proxy with advanced filtering capabilities";
     license = licenses.gpl2;
