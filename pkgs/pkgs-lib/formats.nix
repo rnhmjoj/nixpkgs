@@ -452,4 +452,23 @@ rec {
     '') {};
   };
 
+  libconfig = { }: {
+    type = with lib.types; let
+      valueType = nullOr (oneOf [
+        bool
+        int
+        float
+        str
+        path
+        (attrsOf valueType)
+        (listOf valueType)
+      ]) // {
+        description = "libconfig settings";
+      };
+    in valueType;
+
+    generate = name: value:
+      pkgs.writeText name (lib.generators.toLibconfig { } value);
+  };
+
 }
