@@ -229,6 +229,94 @@ rec {
     in
       toINI_ (gitFlattenAttrs attrs);
 
+  /* Generate a [libconfig](https://hyperrealm.github.io/libconfig/)
+   * configuration file from a Nix attrset of settings. Settings can be scalars
+   * (numbers, strings, booleans), lists or other attrsets.
+   *
+   * For example:
+   *
+   *   generators.toLibconfig {} {
+   *     version = "1.0";
+   *     application.window = {
+   *       title = "My Application";
+   *       size = { w = 640; h = 480; };
+   *       pos  = { x = 350; y = 250; };
+   *     };
+   *     list = [ "abc" 123 true];
+   *   }
+   *
+   * generates
+   *
+   *   application: {
+   *     window: {
+   *       pos: {
+   *         x: 350;
+   *         y: 250;
+   *       };
+   *       size: {
+   *         h: 480;
+   *         w: 640;
+   *       };
+   *       title: "My Application";
+   *     };
+   *   };
+   *   list: (
+   *     "abc",
+   *     123,
+   *     true
+   *   );
+   *
+   * Limitations:
+   *   - Being untyped, Nix does not distinguish between lists and arrays
+   *     (homogeneuous lists), so it's not possible to generate arrays.
+   *   - It's not possible to generate octal or hexadecimal or long integers.
+   *   - Nix strings do not support \x escape codes, so all backslash sequences
+   *     generate the respective character. To write the literal sequence you
+   *     must escape the backslash (e.g. "\\x00\\x04\\xff").
+   */
+  toLibconfig = {
+    # format a setting line from key and value
+    mkValueString ? mkValueStringDefault {}
+  }: attrs:
+    let
+        # indents a string
+        indent = lev: string:
+          libStr.concatStrings (lib.replicate lev "  ") + string;
+
+        # escape and add quotes
+        quote = string: "\"${libStr.escape ["\""] string}\"";
+
+        # serialises a Nix value to libconfig format
+        mkValue = lev: value:
+               if builtins.isList value then mkList lev value
+          else if builtins.isAttrs value then mkAttrs lev value
+          else if builtins.isString value then quote value
+          else mkValueString value;
+
+        # makes a key:value definition
+        mkDef = lev: key: value:
+          "${key}: ${mkValue lev value};";
+
+        # makes the content of a list
+        mkValues = lev: values:
+          libStr.concatMapStringsSep ",\n"
+            (value: indent lev (mkValue lev value)) values;
+
+        # makes a list
+        mkList = lev: values:
+          "(\n" + mkValues (lev + 1) values + "\n" + indent lev ")";
+
+        # makes an attrset
+        mkAttrs = lev: attrs:
+            libStr.optionalString (lev > -1) "{\n"
+          + libStr.concatStringsSep "\n" (libAttr.mapAttrsToList
+              (name: value: indent (lev + 1) (mkDef (lev + 1) name value)) attrs)
+          + "\n"
+          + libStr.optionalString (lev > -1) (indent lev "}");
+    in
+      # map input to ini sections
+      mkAttrs (-1) attrs;
+
   /* Generates JSON from an arbitrary (non-function) value.
     * For more information see the documentation of the builtin.
     */

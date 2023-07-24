@@ -794,6 +794,79 @@ runTests {
     '';
   };
 
+  testToLibConfig = {
+    expr = generators.toLibconfig {} {
+      version = "1.0";
+      application.window =
+        {
+          title = "My Application";
+          size = { w = 640; h = 480; };
+          pos = { x = 350; y = 250; };
+        };
+      application.list =
+        [ [ "abc" 123 true ] 1.234 [ /* an empty list */ ] ];
+      application.books = [
+        { title  = "Treasure Island";
+          author = "Robert Louis Stevenson";
+          price  = 29.95;
+          qty    = 5;
+        }
+        { title  = "Snow Crash";
+          author = "Neal Stephenson";
+          price  = 9.99;
+          qty    = 8;
+        }
+      ];
+      misc.hex = "\\x0d\\xff";
+      misc.quote = "\"";
+    };
+    expected = ''
+      application: {
+        books: (
+          {
+            author: "Robert Louis Stevenson";
+            price: 29.950000;
+            qty: 5;
+            title: "Treasure Island";
+          },
+          {
+            author: "Neal Stephenson";
+            price: 9.990000;
+            qty: 8;
+            title: "Snow Crash";
+          }
+        );
+        list: (
+          (
+            "abc",
+            123,
+            true
+          ),
+          1.234000,
+          (
+
+          )
+        );
+        window: {
+          pos: {
+            x: 350;
+            y: 250;
+          };
+          size: {
+            h: 480;
+            w: 640;
+          };
+          title: "My Application";
+        };
+      };
+      misc: {
+        hex: "\x0d\xff";
+        quote: "\"";
+      };
+      version: "1.0";
+    '';
+  };
+
   /* right now only invocation check */
   testToJSONSimple =
     let val = {
