@@ -16,15 +16,15 @@ in
     (mkRenamedOptionModule [ "services" "sslh" "timeout" ] [ "services" "sslh" "settings" "timeout" ])
     (mkRenamedOptionModule [ "services" "sslh" "transparent" ] [ "services" "sslh" "settings" "transparent" ])
     (mkRemovedOptionModule [ "services" "sslh" "appendConfig" ] "Use services.sslh.settings instead")
-    (mkChangedOptionModule [ "services" "sslh" "verbose" ] [ "services" "sslh" "settings" "verbose" ]
-      (verbose: if verbose then 1 else 0))
+    (mkChangedOptionModule [ "services" "sslh" "verbose" ] [ "services" "sslh" "settings" "verbose-connections" ]
+      (config: if config.services.sslh.verbose then 1 else 0))
   ];
 
   options.services.sslh = {
     enable = mkEnableOption (lib.mdDoc "sslh, protocol demultiplexer");
 
     method = mkOption {
-      type = types.enum [ "fork" "select" ];
+      type = types.enum [ "fork" "select" "ev" ];
       default = "fork";
       description = lib.mdDoc ''
         The method to use for handling connections:
@@ -36,6 +36,9 @@ in
           - `select` uses only one thread, which monitors all connections at once.
           It has lower overhead per connection, but if it stops, you'll lose all
           connections.
+
+          - `ev` is implemented using libev, it's similar to `select` but
+            scales better to a large number of connections.
       '';
     };
 
@@ -55,15 +58,6 @@ in
       type = types.submodule {
         freeformType = configFormat.type;
 
-        options.verbose = mkOption {
-          type = types.int;
-          default = 0;
-          example = 3;
-          description = lib.mdDoc ''
-            Logging verbosity: higher values for more information.
-          '';
-        };
-
         options.timeout = mkOption {
           type = types.int;
           default = 2;
@@ -77,6 +71,20 @@ in
             Whether the services behind sslh (Apache, sshd and so on) will see the
             external IP and ports as if the external world connected directly to
             them.
+          '';
+        };
+
+        options.verbose-connections = mkOption {
+          type = types.enum [ 0 1 2 3 4 ];
+          default = 0;
+          description = lib.mdDoc ''
+            Where to log connections information. Possible values are:
+
+             0. don't log anything
+             1. write log to stdout
+             2. write log to syslog
+             3. write log to both stdout and syslog
+             4. write to a log file ({option}`sslh.settings.logfile`)
           '';
         };
 
