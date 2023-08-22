@@ -1,4 +1,4 @@
-{ lib, stdenv, fetchFromGitHub, libcap, libev, libconfig, perl, tcp_wrappers, pcre2, nixosTests }:
+{ lib, stdenv, fetchFromGitHub, fetchpatch, libcap, libev, libconfig, perl, tcp_wrappers, pcre2, nixosTests }:
 
 stdenv.mkDerivation rec {
   pname = "sslh";
@@ -10,6 +10,14 @@ stdenv.mkDerivation rec {
     rev = "v${version}";
     hash = "sha256-i9M9R7j8yk23/AaARDdEmwM+WpNsnnyexzKNOAZNFjA=";
   };
+
+  patches = [
+    # Fix IPv6 UDP connections
+    (fetchpatch {
+      url  = "https://github.com/yrutschle/sslh/pull/401.patch";
+      hash = "sha256-ic1m98s7P0bejx1n5tvuoeoqCWtovjpvws8jRUppAfw=";
+     })
+  ];
 
   postPatch = "patchShebangs *.sh";
 
