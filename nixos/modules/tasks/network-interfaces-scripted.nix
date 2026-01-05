@@ -194,6 +194,7 @@ let
               ++ optional config.boot.isContainer "network.target"
               ++ optional isDefaultGateway "network-online.target";
             bindsTo = deviceDependency i.name;
+            partOf = [ "networking-scripted.target" ];
             after = [ "network-pre.target" ]
               ++ optional needsSourceIface4 "network-addresses-${source4Iface.name}.service"
               ++ optional needsSourceIface6 "network-addresses-${source6Iface.name}.service"
@@ -315,6 +316,7 @@ let
           nameValuePair "${i.name}-netdev" {
             description = "Virtual Network Interface ${i.name}";
             bindsTo = optional (!config.boot.isContainer) "dev-net-tun.device";
+            partOf = [ "networking-scripted.target" ];
             after = optional (!config.boot.isContainer) "dev-net-tun.device" ++ [ "network-pre.target" ];
             wantedBy = [
               "network.target"
@@ -347,7 +349,7 @@ let
                 (subsystemDevice n)
               ];
               bindsTo = deps ++ optional v.rstp "mstpd.service";
-              partOf = [ "network.target" ] ++ optional v.rstp "mstpd.service";
+              partOf = [ "network.target" "networking-scripted.target" ] ++ optional v.rstp "mstpd.service";
               after = [
                 "network-pre.target"
               ]
@@ -452,7 +454,7 @@ let
               ]
               ++ internalConfigs;
               before = [ "network.target" ] ++ internalConfigs;
-              partOf = [ "network.target" ]; # shutdown the bridge when network is shutdown
+              partOf = [ "network.target" "networking-scripted.target" ]; # shutdown the bridge when network is shutdown
               bindsTo = [ "ovs-vswitchd.service" ]; # requires ovs-vswitchd to be alive at all times
               after = [
                 "network-pre.target"
@@ -520,6 +522,7 @@ let
                 (subsystemDevice n)
               ];
               bindsTo = deps;
+              partOf = [ "networking-scripted.target" ];
               after = [ "network-pre.target" ] ++ deps ++ map (i: "network-addresses-${i}.service") v.interfaces;
               before = [ "network.target" ];
               serviceConfig.Type = "oneshot";
@@ -568,6 +571,7 @@ let
                 (subsystemDevice n)
               ];
               bindsTo = deps;
+              partOf = [ "networking-scripted.target" ];
               after = [ "network-pre.target" ] ++ deps;
               before = [ "network.target" ];
               serviceConfig.Type = "oneshot";
@@ -611,6 +615,7 @@ let
                 (subsystemDevice n)
               ];
               bindsTo = deps;
+              partOf = [ "networking-scripted.target" ];
               after = [ "network-pre.target" ] ++ deps;
               before = [ "network.target" ];
               serviceConfig.Type = "oneshot";
@@ -682,6 +687,7 @@ let
                 (subsystemDevice n)
               ];
               bindsTo = deps;
+              partOf = [ "networking-scripted.target" ];
               after = [ "network-pre.target" ] ++ deps;
               before = [ "network.target" ];
               serviceConfig.Type = "oneshot";
@@ -729,6 +735,7 @@ let
                 (subsystemDevice n)
               ];
               bindsTo = deps;
+              partOf = [ "networking-scripted.target" ];
               after = [ "network-pre.target" ] ++ deps;
               before = [ "network.target" ];
               serviceConfig.Type = "oneshot";
@@ -763,7 +770,7 @@ let
                 (subsystemDevice n)
               ];
               bindsTo = deps;
-              partOf = [ "network.target" ];
+              partOf = [ "network.target" "networking-scripted.target" ];
               after = [ "network-pre.target" ] ++ deps;
               before = [ "network.target" ];
               serviceConfig.Type = "oneshot";
@@ -813,6 +820,13 @@ let
     # Thus, to start these services we link network.target directly
     # to multi-user.target, this has the same result.
     systemd.targets.network.wantedBy = [ "multi-user.target" ];
+
+    # This target serves no purpose during the boot, but can be
+    # used to quickly reset the network configuration by running
+    # systemctl restart networking-scripted.target
+    systemd.targets.networking-scripted = {
+      description = "NixOS scripted networking setup";
+    };
 
     services.udev.extraRules = ''
       KERNEL=="tun", TAG+="systemd"
