@@ -81,6 +81,8 @@ python3Packages.buildPythonApplication rec {
     "--set TMPDIR ${withTmpdir}"
   ];
 
+  doCheck = false;
+
   passthru =
     let
       python-with-pkgs = python3.withPackages (

@@ -263,8 +263,8 @@ def find_file(file: str, nix_flags: Args | None = None) -> Path | None:
     "Find classic Nix file location."
     r = run_wrapper(
         ["nix-instantiate", "--find-file", file, *dict_to_flags(nix_flags)],
-        stdout=PIPE,
         check=False,
+        capture_output=True,
     )
     if r.returncode:
         return None
